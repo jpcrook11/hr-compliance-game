@@ -181,6 +181,9 @@
 
 
   <script>
+    const API_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:3000'
+        : 'https://hr-backend-2bup.onrender.com'; 
     let askedQuestions = new Set(); // Track which questions have been asked
     let countdownTimer = null; // For the timer interval
     let timeLeft = 10; // Seconds to answer    
