@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Challenge: Avoid Crushing Executive Actions</title>
+    <style>
+      body {
+          margin: 0;
+          overflow: hidden;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          background-color: #f0f0f0;
+          font-family: Arial, sans-serif;
+      }
+      #gameContainer {
+          padding: 20px;
+          box-sizing: border-box;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          position: relative;
+      }
+      canvas {
+          border: 1px solid black;
+          max-width: 100%;
+          max-height: 100vh;
+      }
+      #contactForm {
+          display: none;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(255, 255, 255, 0.95);
+          padding: 20px;
+          border-radius: 8px;
+          width: 300px;
+          margin-top: 400px;
+      }
+      #contactForm input {
+          width: 100%;
+          padding: 8px;
+          margin: 4px 0;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-sizing: border-box;
+      }
+      #contactForm button {
+          width: 100%;
+          padding: 10px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          margin-top: 10px;
+      }
+      #contactForm button:hover {
+          background-color: #45a049;
+      }
+      .form-group {
+          margin-bottom: 10px;
+      }
+      label {
+          display: block;
+          margin-bottom: 2px;
+          font-weight: bold;
+          font-size: 14px;
+      }
+      #contactForm h2 {
+          font-size: 20px;
+          margin: 0 0 15px 0;
+          text-align: center;
+      }
+      #leaderboardButton {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          background: #4CAF50;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 4px;
+          cursor: pointer;
+          z-index: 1000;
+      }
+      #leaderboardContainer {
+          display: none;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(255, 255, 255, 0.95);
+          padding: 20px;
+          border-radius: 8px;
+          width: 80%;
+          max-width: 600px;
+          max-height: 80vh;
+          overflow-y: auto;
+      }
+      .leaderboard-entry {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px;
+          margin: 5px 0;
+          background: #f5f5f5;
+          border-radius: 4px;
+      }
+      .leaderboard-entry:nth-child(even) {
+          background: #eaeaea;
+      }
+      .leaderboard-rank {
+          font-weight: bold;
+          margin-right: 10px;
+          min-width: 30px;
+      }
+      .leaderboard-info {
+          flex-grow: 1;
+      }
+      .leaderboard-score {
+          font-weight: bold;
+          margin-left: 10px;
+      }
+    </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    <button id="leaderboardButton" onclick="toggleLeaderboard()">View Leaderboard</button>
+    <form id="contactForm" onsubmit="handleFormSubmit(event)">
+        <h2>Save Your Score: 0</h2>
+        <div class="form-group">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" name="firstName" required>
+        </div>
+        <div class="form-group">
+            <label for="lastName">Last Name:</label>
+            <input type="text" id="lastName" name="lastName" required>
+        </div>
+        <div class="form-group">
+            <label for="company">Company Name:</label>
+            <input type="text" id="company" name="company" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="displayName">Display Name (Optional):</label>
+            <input type="text" id="displayName" name="displayName" placeholder="Leave blank to use real name">
+            <div style="font-size: 0.8em; color: #666; margin-top: 2px;">
+                This name will be shown on the leaderboard instead of your real name
+            </div>
+        </div>
+        <button type="submit">Submit Score</button>
+    </form>
+    <div id="leaderboardContainer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Top Players</h2>
+            <button onclick="toggleLeaderboard()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Close</button>
+        </div>
+        <div id="leaderboardContent">
+            <!-- Leaderboard entries will be inserted here -->
+        </div>
+    </div>
+    <div id="quizContainer" style="display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; width: 80%; max-width: 600px;">
+        <h2 style="text-align: center; margin-bottom: 20px;">Check your HR Knowledge to keep playing!</h2>
+        <p id="quizQuestion" style="font-size: 18px; margin-bottom: 20px;"></p>
+        <div id="quizOptions" style="display: flex; flex-direction: column; gap: 10px;">
+        </div>
+    </div>
+
+    
+  </div>
+  
+  
+
+
+
+  <script>
+    let askedQuestions = new Set(); // Track which questions have been asked
+    let countdownTimer = null; // For the timer interval
+    let timeLeft = 10; // Seconds to answer    
+      
+          // First add the new quiz-related variables
+    const hrQuizQuestions = [
+        {
+            question: "What is the minimum number of employees required for FMLA to apply?",
+            options: ["25", "50", "75", "100"],
+            correct: "50"
+        },
+        {
+            question: "Which of these is NOT a protected class under Title VII?",
+            options: ["Race", "Religion", "Political Affiliation", "National Origin"],
+            correct: "Political Affiliation"
+        },
+        {
+            question: "How long must employers retain I-9 forms after termination?",
+            options: ["1 year", "2 years", "3 years", "5 years"],
+            correct: "3 years"
+        },
+        {
+            question: "What is the federal minimum salary requirement for exempt employees (as of 2024)?",
+            options: ["$35,568", "$47,476", "$55,000", "$84,848"],
+            correct: "$35,568"
+        }
+    ];
+
+    let currentQuizQuestion = null;
+    let quizActive = false;
+
+    // Add the quiz functions
+    function showQuiz() {
+        // Check if all questions have been asked
+        if (askedQuestions.size >= hrQuizQuestions.length) {
+            // All questions used - game over
+            gameOver = true;
+            showGameOver();
+            return;
+        }
+
+        // Find an unasked question
+        let availableQuestions = hrQuizQuestions.filter(q => !askedQuestions.has(q.question));
+        const questionObj = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+        askedQuestions.add(questionObj.question);
+        
+        quizActive = true;
+        gameOver = false;
+        stethoscopes = [];
+        timeLeft = 10;
+        
+        const quizContainer = document.getElementById('quizContainer');
+        currentQuizQuestion = questionObj;
+        
+        // Add timer display
+        quizContainer.innerHTML = `
+            <h2 style="text-align: center; margin-bottom: 20px;">Check your HR Knowledge to keep playing!</h2>
+            <div style="text-align: center; font-size: 24px; margin-bottom: 10px;">Time remaining: <span id="countdown">${timeLeft}</span></div>
+            <p id="quizQuestion" style="font-size: 18px; margin-bottom: 20px;">${questionObj.question}</p>
+            <div id="quizOptions" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        `;
+        
+        const optionsContainer = document.getElementById('quizOptions');
+        questionObj.options.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.style.cssText = 'padding: 10px; margin: 5px 0; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;';
+            button.onclick = () => handleQuizAnswer(option);
+            optionsContainer.appendChild(button);
+        });
+        
+        quizContainer.style.display = 'block';
+        
+        // Start countdown
+        countdownTimer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('countdown').textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownTimer);
+                handleQuizAnswer(''); // Wrong answer
+            }
+        }, 1000);
+    }
+
+    function handleQuizAnswer(selectedAnswer) {
+        clearInterval(countdownTimer); // Clear the timer
+        const quizContainer = document.getElementById('quizContainer');
+        
+        if (selectedAnswer === currentQuizQuestion.correct) {
+            // Correct answer
+            quizContainer.style.display = 'none';
+            quizActive = false;
+            gameOver = false;
+            gameStarted = true;
+            setTimeout(() => {
+                gameLoop();
+            }, 1000);
+        } else {
+            // Wrong answer
+            quizContainer.style.display = 'none';
+            gameOver = true;
+            showGameOver();
+        }
+    }
+
+      
+      
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const contactForm = document.getElementById('contactForm');
+      
+      // Game scale factors
+      let baseWidth = 1000;
+      let baseHeight = 800;
+      let scale = 1;
+      let showingThankYouScreen = false;
+
+      function toggleLeaderboard() {
+          const container = document.getElementById('leaderboardContainer');
+          const isHidden = container.style.display === 'none';
+          
+          container.style.display = isHidden ? 'block' : 'none';
+          
+          if (isHidden) {
+              fetchLeaderboard();
+              // Pause the game if it's running
+              if (gameStarted && !gameOver) {
+                  gameStarted = false;
+              }
+          } else {
+              // Resume the game if it was running and not over
+              if (!gameOver) {
+                  gameStarted = true;
+                  gameLoop();
+              }
+          }
+      }
+
+    // Modify the existing game functions
+    function resetGame() {
+        score = 0;
+        stethoscopes = [];
+        gameOver = false;
+        gameStarted = false;
+        showingThankYouScreen = false;
+        quizActive = false;
+        doctor.x = baseWidth / 2;
+        askedQuestions.clear(); // Reset asked questions
+        
+        // Clear any existing timer
+        if (countdownTimer) {
+            clearInterval(countdownTimer);
+        }
+        
+        // Clear the canvas
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        // Reset UI elements
+        contactForm.style.display = 'none';
+        document.getElementById('contactForm').reset();
+        document.getElementById('leaderboardContainer').style.display = 'none';
+        document.getElementById('quizContainer').style.display = 'none';
+        
+        // Draw welcome screen
+        drawWelcomeScreen();
+    }
+      // Function to resize canvas
+      function resizeCanvas() {
+          const container = document.getElementById('gameContainer');
+          const maxWidth = container.clientWidth - 40;
+          const maxHeight = window.innerHeight - 40;
+          
+          const horizontalScale = maxWidth / baseWidth;
+          const verticalScale = maxHeight / baseHeight;
+          scale = Math.min(horizontalScale, verticalScale);
+          
+          canvas.width = baseWidth * scale;
+          canvas.height = baseHeight * scale;
+          
+          ctx.scale(scale, scale);
+      }
+
+      // Initial resize and event listener
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Game variables
+      let doctor = { 
+          x: baseWidth / 2, 
+          y: baseHeight * 0.7, 
+          width: 100, 
+          height: 120 
+      };
+      let stethoscopes = [];
+      let score = 0;
+      let gameOver = false;
+      let gameStarted = false;
+
+      // Load images
+      const doctorImg = new Image();
+      doctorImg.src = 'images/hr-pro.png';
+      const stethoscopeImg = new Image();
+      stethoscopeImg.src = 'images/trump-2.jpg';
+      const logoImg = new Image();
+      logoImg.src = 'images/Crook legal Logo.png';
+
+      // Event listener for mouse movement - adjusted for scale
+      canvas.addEventListener('mousemove', (e) => {
+          if (gameStarted) {
+              const rect = canvas.getBoundingClientRect();
+              const mouseX = (e.clientX - rect.left) / scale;
+              doctor.x = mouseX - doctor.width / 2;
+              doctor.x = Math.max(0, Math.min(baseWidth - doctor.width, doctor.x));
+          }
+      });
+
+      canvas.addEventListener('click', () => {
+          if (!gameStarted) {
+              gameStarted = true;
+              gameLoop();
+          }
+      });
+
+      function drawLogo() {
+          const maxWidth = 300;
+          const aspectRatio = 3135 / 1317;
+          const logoWidth = maxWidth;
+          const logoHeight = logoWidth / aspectRatio;
+          
+          const xPosition = (baseWidth - logoWidth) / 2;
+          const yPosition = 20;
+          
+          ctx.drawImage(logoImg, xPosition, yPosition, logoWidth, logoHeight);
+      }
+
+      function drawDoctor() {
+          ctx.drawImage(doctorImg, doctor.x, doctor.y, doctor.width, doctor.height);
+      }
+
+      function drawStethoscope(stethoscope) {
+          ctx.drawImage(stethoscopeImg, stethoscope.x, stethoscope.y, stethoscope.width, stethoscope.height);
+      }
+
+      function createStethoscope() {
+          return {
+              x: Math.random() * (baseWidth - 120),
+              y: 0,
+              width: 120,
+              height: 120,
+              speed: 2 + Math.random() * 3
+          };
+      }
+
+
+      function updateStethoscopes() {
+            if (Math.random() < 0.02) {
+                stethoscopes.push(createStethoscope());
+            }
+
+            for (let i = stethoscopes.length - 1; i >= 0; i--) {
+                stethoscopes[i].y += stethoscopes[i].speed;
+
+                if (stethoscopes[i].y > baseHeight) {
+                    stethoscopes.splice(i, 1);
+                    score++;
+                } else if (checkCollision(doctor, stethoscopes[i])) {
+                    stethoscopes.splice(i, 1); // Remove the colliding stethoscope
+                    showQuiz();
+                    return; // Exit the function after showing quiz
+                }
+            }
+        }
+
+    function checkCollision(a, b) {
+        return a.x < b.x + b.width &&
+            a.x + a.width > b.x &&
+            a.y < b.y + b.height &&
+            a.y + a.height > b.y;
+    }
+
+      function drawScore() {
+          ctx.fillStyle = 'black';
+          ctx.font = '24px Arial';
+          ctx.textAlign = 'left';
+          ctx.fillText(`Score: ${score}`, 40, 40);
+      }
+
+      function drawWelcomeScreen() {
+          ctx.fillStyle = 'black';
+          ctx.font = '32px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Welcome to Compliance Challenge!', baseWidth / 2, 200);
+          ctx.font = '24px Arial';
+          ctx.fillText('Avoid the falling Executive Actions', baseWidth / 2, 240);
+          ctx.fillText('to keep HR employee Marcy from being crushed!', baseWidth / 2, 270);
+          ctx.fillText('Move your mouse to move Marcy.', baseWidth / 2, 300);
+          ctx.fillText('Click to start', baseWidth / 2, 350);
+          drawLogo();
+      }
+
+      async function fetchLeaderboard() {
+          const leaderboardContent = document.getElementById('leaderboardContent');
+          leaderboardContent.innerHTML = 'Loading...';
+          
+          try {
+              const response = await fetch('http://localhost:3000/api/leaderboard');
+              const data = await response.json();
+              
+              if (data.success) {
+                leaderboardContent.innerHTML = data.leaderboard.map((entry, index) => `
+                    <div class="leaderboard-entry">
+                        <span class="leaderboard-rank">${index + 1}.</span>
+                        <div class="leaderboard-info">
+                            <div>${entry.displayName || `${entry.firstName} ${entry.lastName}`}</div>
+                            <div style="font-size: 0.8em; color: #666;">${entry.company}</div>
+                        </div>
+                        <span class="leaderboard-score">${entry.score}</span>
+                    </div>
+                `).join('');
+                  
+                  if (data.leaderboard.length === 0) {
+                      leaderboardContent.innerHTML = '<p style="text-align: center;">No scores yet!</p>';
+                  }
+              } else {
+                  throw new Error(data.error || 'Failed to fetch leaderboard');
+              }
+          } catch (error) {
+              leaderboardContent.innerHTML = `<p style="color: red; text-align: center;">Error loading leaderboard: ${error.message}</p>`;
+          }
+      }
+
+      async function handleFormSubmit(event) {
+          event.preventDefault();
+          const submitButton = event.target.querySelector('button[type="submit"]');
+          const originalButtonText = submitButton.textContent;
+          
+          // Disable button and show loading state
+          submitButton.disabled = true;
+          submitButton.textContent = 'Submitting...';
+          
+          const formData = {
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                company: document.getElementById('company').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                displayName: document.getElementById('displayName').value.trim() || null, // if empty, use null
+                score: score
+            };
+          
+          try {
+              const response = await fetch('http://localhost:3000/api/submit-score', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(formData)
+              });
+
+              const result = await response.json();
+              
+              if (result.success) {
+                  // Hide form
+                  contactForm.style.display = 'none';
+                  showingThankYouScreen = true;
+                  
+                  // Clear the canvas and show thank you message
+                  ctx.save();
+                  ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.restore();
+                  
+                  drawLogo();
+                  
+                  ctx.fillStyle = 'black';
+                  ctx.font = '32px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.fillText('Thanks for playing!', baseWidth/2, baseHeight * 0.6);
+                  ctx.fillText('Your score has been saved.', baseWidth/2, baseHeight * 0.6 + 40);
+                  ctx.font = '24px Arial';
+                  ctx.fillText('Click anywhere to play again', baseWidth/2, baseHeight * 0.6 + 100);
+                  
+                  // Add one-time click listener for replay
+                  const playAgainHandler = () => {
+                      if (showingThankYouScreen) {
+                          canvas.removeEventListener('click', playAgainHandler);
+                          resetGame();
+                      }
+                  };
+                  canvas.addEventListener('click', playAgainHandler);
+              } else {
+                  throw new Error(result.error || 'Submission failed');
+              }
+          } catch (error) {
+              console.error('Error submitting score:', error);
+              alert(error.message || 'Error saving score. Please try again.');
+          } finally {
+              // Reset button state
+              submitButton.disabled = false;
+              submitButton.textContent = originalButtonText;
+          }
+      }
+
+      function gameLoop() {
+            if (!gameStarted || showingThankYouScreen) {
+                return;
+            }
+
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            if (quizActive) {
+                // Just draw the current state without updating
+                drawDoctor();
+                stethoscopes.forEach(drawStethoscope);
+                drawScore();
+                drawLogo();
+                requestAnimationFrame(gameLoop);
+            } else if (!gameOver) {
+                updateStethoscopes();
+                drawDoctor();
+                stethoscopes.forEach(drawStethoscope);
+                drawScore();
+                drawLogo();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+      // Start the game when images are loaded
+      Promise.all([
+          new Promise(resolve => doctorImg.onload = resolve),
+          new Promise(resolve => stethoscopeImg.onload = resolve),
+          new Promise(resolve => logoImg.onload = resolve)
+      ]).then(() => {
+          drawWelcomeScreen();
+      });
+
+
+      function showGameOver() {
+        drawLogo();
+        
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+        
+        ctx.font = '64px Arial';
+        ctx.fillText('Game Over!', baseWidth / 2, baseHeight / 4);
+        
+        ctx.font = '28px Arial';
+        ctx.fillText('Better hope Marcy', baseWidth / 2, baseHeight / 4 + 60);
+        ctx.fillText('consulted with Crook Legal Group!', baseWidth / 2, baseHeight / 4 + 100);
+        
+        ctx.font = '32px Arial';
+        ctx.fillText(`Final Score: ${score}`, baseWidth / 2, baseHeight / 4 + 150);
+        
+        // Show score submission form
+        contactForm.style.display = 'block';
+        document.querySelector('#contactForm h2').textContent = `Save Your Score: ${score}`;
+    }
+  </script>
+</body>
+</html>
