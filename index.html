@@ -181,9 +181,17 @@
 
 
   <script>
-    const API_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:3000'
-        : 'https://hr-backend-2bup.onrender.com'; 
+    const API_URL = (() => {
+        const hostname = window.location.hostname;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:3000';
+        } else if (hostname.includes('github.io')) {
+            return 'https://hr-backend-2bup.onrender.com';
+        } else {
+            // For other environments, use the render.com backend
+            return 'https://hr-backend-2bup.onrender.com';
+        }
+    })();
     let askedQuestions = new Set(); // Track which questions have been asked
     let countdownTimer = null; // For the timer interval
     let timeLeft = 10; // Seconds to answer    
@@ -489,107 +497,127 @@
       }
 
       async function fetchLeaderboard() {
-          const leaderboardContent = document.getElementById('leaderboardContent');
-          leaderboardContent.innerHTML = 'Loading...';
-          
-          try {
-              const response = await fetch(`${API_URL}/api/leaderboard`)
-              const data = await response.json();
-              
-              if (data.success) {
-                leaderboardContent.innerHTML = data.leaderboard.map((entry, index) => `
-                    <div class="leaderboard-entry">
-                        <span class="leaderboard-rank">${index + 1}.</span>
-                        <div class="leaderboard-info">
-                            <div>${entry.displayName || `${entry.firstName} ${entry.lastName}`}</div>
-                            <div style="font-size: 0.8em; color: #666;">${entry.company}</div>
+            const leaderboardContent = document.getElementById('leaderboardContent');
+            leaderboardContent.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/leaderboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors' // Enable CORS
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    leaderboardContent.innerHTML = data.leaderboard.map((entry, index) => `
+                        <div class="leaderboard-entry">
+                            <span class="leaderboard-rank">${index + 1}.</span>
+                            <div class="leaderboard-info">
+                                <div>${entry.displayName || `${entry.firstName} ${entry.lastName}`}</div>
+                                <div style="font-size: 0.8em; color: #666;">${entry.company}</div>
+                            </div>
+                            <span class="leaderboard-score">${entry.score}</span>
                         </div>
-                        <span class="leaderboard-score">${entry.score}</span>
-                    </div>
-                `).join('');
-                  
-                  if (data.leaderboard.length === 0) {
-                      leaderboardContent.innerHTML = '<p style="text-align: center;">No scores yet!</p>';
-                  }
-              } else {
-                  throw new Error(data.error || 'Failed to fetch leaderboard');
-              }
-          } catch (error) {
-              leaderboardContent.innerHTML = `<p style="color: red; text-align: center;">Error loading leaderboard: ${error.message}</p>`;
-          }
-      }
+                    `).join('');
+                    
+                    if (data.leaderboard.length === 0) {
+                        leaderboardContent.innerHTML = '<p style="text-align: center;">No scores yet!</p>';
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to fetch leaderboard');
+                }
+            } catch (error) {
+                console.error('Leaderboard fetch error:', error);
+                leaderboardContent.innerHTML = `
+                    <p style="color: red; text-align: center;">
+                        Error loading leaderboard: ${error.message}
+                        <br>
+                        <small>Please try again later</small>
+                    </p>`;
+            }
+        }
 
-      async function handleFormSubmit(event) {
-          event.preventDefault();
-          const submitButton = event.target.querySelector('button[type="submit"]');
-          const originalButtonText = submitButton.textContent;
-          
-          // Disable button and show loading state
-          submitButton.disabled = true;
-          submitButton.textContent = 'Submitting...';
-          
-          const formData = {
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const submitButton = event.target.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+            
+            const formData = {
                 firstName: document.getElementById('firstName').value.trim(),
                 lastName: document.getElementById('lastName').value.trim(),
                 company: document.getElementById('company').value.trim(),
                 email: document.getElementById('email').value.trim(),
-                displayName: document.getElementById('displayName').value.trim() || null, // if empty, use null
+                displayName: document.getElementById('displayName').value.trim() || null,
                 score: score
             };
-          
-          try {
-              const response = await fetch(`${API_URL}/api/submit-score`, {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(formData)
-              });
+            
+            try {
+                const response = await fetch(`${API_URL}/api/submit-score`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors', // Enable CORS
+                    body: JSON.stringify(formData)
+                });
 
-              const result = await response.json();
-              
-              if (result.success) {
-                  // Hide form
-                  contactForm.style.display = 'none';
-                  showingThankYouScreen = true;
-                  
-                  // Clear the canvas and show thank you message
-                  ctx.save();
-                  ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-                  ctx.restore();
-                  
-                  drawLogo();
-                  
-                  ctx.fillStyle = 'black';
-                  ctx.font = '32px Arial';
-                  ctx.textAlign = 'center';
-                  ctx.fillText('Thanks for playing!', baseWidth/2, baseHeight * 0.6);
-                  ctx.fillText('Your score has been saved.', baseWidth/2, baseHeight * 0.6 + 40);
-                  ctx.font = '24px Arial';
-                  ctx.fillText('Click anywhere to play again', baseWidth/2, baseHeight * 0.6 + 100);
-                  
-                  // Add one-time click listener for replay
-                  const playAgainHandler = () => {
-                      if (showingThankYouScreen) {
-                          canvas.removeEventListener('click', playAgainHandler);
-                          resetGame();
-                      }
-                  };
-                  canvas.addEventListener('click', playAgainHandler);
-              } else {
-                  throw new Error(result.error || 'Submission failed');
-              }
-          } catch (error) {
-              console.error('Error submitting score:', error);
-              alert(error.message || 'Error saving score. Please try again.');
-          } finally {
-              // Reset button state
-              submitButton.disabled = false;
-              submitButton.textContent = originalButtonText;
-          }
-      }
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
+                const result = await response.json();
+                
+                if (result.success) {
+                    contactForm.style.display = 'none';
+                    showingThankYouScreen = true;
+                    
+                    ctx.save();
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                    
+                    drawLogo();
+                    
+                    ctx.fillStyle = 'black';
+                    ctx.font = '32px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Thanks for playing!', baseWidth/2, baseHeight * 0.6);
+                    ctx.fillText('Your score has been saved.', baseWidth/2, baseHeight * 0.6 + 40);
+                    ctx.font = '24px Arial';
+                    ctx.fillText('Click anywhere to play again', baseWidth/2, baseHeight * 0.6 + 100);
+                    
+                    const playAgainHandler = () => {
+                        if (showingThankYouScreen) {
+                            canvas.removeEventListener('click', playAgainHandler);
+                            resetGame();
+                        }
+                    };
+                    canvas.addEventListener('click', playAgainHandler);
+                } else {
+                    throw new Error(result.error || 'Submission failed');
+                }
+            } catch (error) {
+                console.error('Score submission error:', error);
+                alert(`Error saving score: ${error.message}\nPlease try again later.`);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
+        }
+        
       function gameLoop() {
             if (!gameStarted || showingThankYouScreen) {
                 return;
