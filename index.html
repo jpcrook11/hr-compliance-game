@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compliance Challenge: Avoid Crushing Executive Actions</title>
     <style>
+      
+      .checkbox-group {
+            margin-top: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        margin-top: 4px;
+    }
+
+    .checkbox-group label {
+        font-size: 14px;
+        font-weight: normal;
+        flex: 1;
+        line-height: 1.4;
+    }
       body {
           margin: 0;
           overflow: hidden;
@@ -154,6 +173,12 @@
             <div style="font-size: 0.8em; color: #666; margin-top: 2px;">
                 This name will be shown on the leaderboard instead of your real name
             </div>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="communicationOptIn" name="communicationOptIn">
+            <label for="communicationOptIn">
+                I agree to receive communications from Crook Legal Group about employment law updates and services.
+            </label>
         </div>
         <button type="submit">Submit Score</button>
     </form>
@@ -560,6 +585,7 @@
                 company: document.getElementById('company').value.trim(),
                 email: document.getElementById('email').value.trim(),
                 displayName: document.getElementById('displayName').value.trim() || null,
+                communicationOptIn: document.getElementById('communicationOptIn').checked,
                 score: score
             };
             
@@ -570,7 +596,7 @@
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
-                    mode: 'cors', // Enable CORS
+                    mode: 'cors',
                     body: JSON.stringify(formData)
                 });
 
