@@ -159,7 +159,7 @@
     <canvas id="gameCanvas"></canvas>
     <button id="leaderboardButton" onclick="toggleLeaderboard()">View Leaderboard</button>
     <form id="contactForm" onsubmit="handleFormSubmit(event)">
-        <h2>Save Your Score: 0</h2>
+        <h2>Join the Leaderboard! Where do you rank?</h2>
         <div class="form-group">
             <label for="firstName">First Name:</label>
             <input type="text" id="firstName" name="firstName" required>
@@ -707,7 +707,7 @@
         
         // Show score submission form
         contactForm.style.display = 'block';
-        document.querySelector('#contactForm h2').textContent = `Save Your Score: ${score}`;
+        document.querySelector('#contactForm h2').textContent = `Join the Leaderboard! Where do you rank?`;
     }
   </script>
 </body>
