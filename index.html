@@ -493,7 +493,7 @@
           leaderboardContent.innerHTML = 'Loading...';
           
           try {
-              const response = await fetch('http://localhost:3000/api/leaderboard');
+              const response = await fetch(`${API_URL}/api/leaderboard`)
               const data = await response.json();
               
               if (data.success) {
@@ -538,7 +538,7 @@
             };
           
           try {
-              const response = await fetch('http://localhost:3000/api/submit-score', {
+              const response = await fetch(`${API_URL}/api/submit-score`, {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json',
