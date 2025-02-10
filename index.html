@@ -158,6 +158,12 @@
   <div id="gameContainer">
     <canvas id="gameCanvas"></canvas>
     <button id="leaderboardButton" onclick="toggleLeaderboard()">View Leaderboard</button>
+    <div id="miniLeaderboard">
+        <h3>Top Players</h3>
+        <div id="miniLeaderboardContent">
+            <!-- Mini leaderboard entries will be inserted here -->
+        </div>
+    </div>
     <form id="contactForm" onsubmit="handleFormSubmit(event)">
         <h2>Join the Leaderboard! Where do you rank?</h2>
         <div class="form-group">
@@ -210,7 +216,62 @@
     
   </div>
   
-  
+  <style>
+    /* Add these new styles */
+    #miniLeaderboard {
+        position: fixed;
+        top: 80px; /* Position below the leaderboard button */
+        right: 20px;
+        width: 250px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    #miniLeaderboard h3 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        color: #333;
+        text-align: center;
+    }
+    
+    .mini-leaderboard-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px;
+        margin: 4px 0;
+        background: #f5f5f5;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+    
+    .mini-leaderboard-entry:nth-child(even) {
+        background: #eaeaea;
+    }
+    
+    .mini-rank {
+        font-weight: bold;
+        margin-right: 8px;
+        min-width: 20px;
+    }
+    
+    .mini-info {
+        flex-grow: 1;
+        margin: 0 8px;
+    }
+    
+    .mini-score {
+        font-weight: bold;
+    }
+    
+    /* Modify gameContainer to account for sidebar */
+    #gameContainer {
+        padding-right: 280px; /* Add space for the mini leaderboard */
+    }
+    </style>
+    
 
 
 
@@ -256,6 +317,50 @@
 
     let currentQuizQuestion = null;
     let quizActive = false;
+
+    async function updateMiniLeaderboard() {
+        const miniLeaderboardContent = document.getElementById('miniLeaderboardContent');
+        
+        try {
+            const response = await fetch(`${API_URL}/api/leaderboard`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Only show top 5 entries in mini leaderboard
+                const topEntries = data.leaderboard.slice(0, 5);
+                miniLeaderboardContent.innerHTML = topEntries.map((entry, index) => `
+                    <div class="mini-leaderboard-entry">
+                        <span class="mini-rank">${index + 1}</span>
+                        <div class="mini-info">
+                            ${entry.displayName || `${entry.firstName} ${entry.lastName}`}
+                        </div>
+                        <span class="mini-score">${entry.score}</span>
+                    </div>
+                `).join('');
+                
+                if (topEntries.length === 0) {
+                    miniLeaderboardContent.innerHTML = '<p style="text-align: center;">No scores yet!</p>';
+                }
+            } else {
+                throw new Error(data.error || 'Failed to fetch leaderboard');
+            }
+        } catch (error) {
+            console.error('Mini leaderboard fetch error:', error);
+            miniLeaderboardContent.innerHTML = '<p style="color: red; text-align: center;">Error loading scores</p>';
+        }
+    }
 
     // Add the quiz functions
     function showQuiz() {
@@ -530,7 +635,7 @@
           drawLogo();
       }
 
-      async function fetchLeaderboard() {
+      async function updateMainLeaderboard() {
             const leaderboardContent = document.getElementById('leaderboardContent');
             leaderboardContent.innerHTML = 'Loading...';
             
@@ -578,7 +683,23 @@
                     </p>`;
             }
         }
+        
+        async function fetchLeaderboard() {
+            // Update both leaderboards
+            await Promise.all([
+                updateMiniLeaderboard(),
+                updateMainLeaderboard() // Rename the existing fetchLeaderboard logic to this
+            ]);
+        }
 
+        // Add periodic refresh of the mini leaderboard
+        function startMiniLeaderboardRefresh() {
+            // Initial fetch
+            updateMiniLeaderboard();
+            
+            // Refresh every 30 seconds
+            setInterval(updateMiniLeaderboard, 30000);
+        }
 
         async function handleFormSubmit(event) {
             event.preventDefault();
@@ -616,6 +737,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    await fetchLeaderboard();
                     contactForm.style.display = 'none';
                     showingThankYouScreen = true;
                     
@@ -687,6 +809,8 @@
       ]).then(() => {
           drawWelcomeScreen();
       });
+
+      document.addEventListener('DOMContentLoaded', startMiniLeaderboardRefresh);
 
 
       function showGameOver() {
